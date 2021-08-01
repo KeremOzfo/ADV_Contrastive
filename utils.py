@@ -117,13 +117,17 @@ def loss_fn_kd(outputs, labels, teacher_outputs,args):
     return KD_loss
 
 def loss_trades(adv_logits,adv_lat,clean_logits,clean_lat,labels,buffer,args):
-    natural_ce = nn.CrossEntropyLoss()(clean_logits,labels) * (1-args.alpha)
-    robust_kld = nn.KLDivLoss(reduction='batchmean')(F.log_softmax(adv_logits, dim=1),F.softmax(clean_logits, dim=1)) * args.Beta_1
+    CE = nn.CrossEntropyLoss()
+    KLD = nn.KLDivLoss(size_average=False)
+    bs = adv_logits.size(0)
+    natural_ce = CE(clean_logits,labels) * (1-args.alpha)
+    robust_kld = KLD(F.log_softmax(adv_logits, dim=1),F.softmax(clean_logits, dim=1)) * args.Beta_1 / bs
     cos_clean = cosine_sim_logitz_buffered(clean_lat,labels,buffer)
     cos_adv = cosine_sim_logitz_buffered(adv_lat,labels,buffer)
-    buffer_clean_kl = nn.KLDivLoss(reduction='batchmean')(F.log_softmax(clean_logits, dim=1),kerem_softmax(cos_clean)) * args.alpha
-    buffer_adv_kl = nn.KLDivLoss(reduction='batchmean')(F.log_softmax(adv_logits, dim=1),kerem_softmax(cos_adv)) * args.Beta_2
-    loss_dic = {'CE':natural_ce.item(),'KL1':buffer_clean_kl.item(),'KL2':robust_kld.item(),'KL3':buffer_adv_kl.item()}
+    #buffer_clean_kl = KLD(F.log_softmax(clean_logits, dim=1),kerem_softmax(cos_clean)) * args.alpha / bs
+    #buffer_adv_kl = KLD(F.log_softmax(adv_logits, dim=1),kerem_softmax(cos_adv)) * args.Beta_2 / bs
+    loss_dic = {'CE':natural_ce.item(),'KL1':0,'KL2':robust_kld.item(),'KL3':0}
+    #loss_dic = {'CE':natural_ce.item(),'KL1':buffer_clean_kl.item(),'KL2':robust_kld.item(),'KL3':buffer_adv_kl.item()}
     #total_loss =  natural_ce + buffer_clean_kl + robust_kld + buffer_adv_kl
     total_loss = natural_ce + robust_kld
     return total_loss, loss_dic
