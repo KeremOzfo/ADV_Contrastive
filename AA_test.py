@@ -18,8 +18,6 @@ def AA_epoch(args,loader, model, device=None):
 
 if __name__ == '__main__':
     args = args_parser()
-    path = get_path(args)
-    os.mkdir(path)
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
 
     train_loader, test_loader = get_data_loader(args)

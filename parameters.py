@@ -4,7 +4,7 @@ import os
 def args_parser():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--gpu', type=int, default=0, help='gpu_id')
+    parser.add_argument('--gpu', type=int, default=1, help='gpu_id')
     parser.add_argument('--num_trail', type=int, default=3, help='number of trail')
     parser.add_argument('--epoch', type=int, default=120, help='number of Epochs for train')
     parser.add_argument('--LR_change', type=list, default=[75,90], help='Lr drops @')
@@ -27,6 +27,7 @@ def args_parser():
     parser.add_argument('--T', type=int, default=5, help='Temperature parameter for KLD loss')
     parser.add_argument('--latent_buffer', type=bool, default=True, help='store latent values on a buffer')
     parser.add_argument('--buffer_size', type=int, default=16, help='buffer size per class')
+    parser.add_argument('--norm_loss', type=int ,default=0, help='add norm of of the logits to total loss')
 
 
     parser.add_argument("--save_model", type=bool, default=True, help='save the trained model')
@@ -49,12 +50,19 @@ def log_params(args,f_acc_adv,f_acc_clean,loc,trail=0):
         f.write('AVG adv acc: {}, AVG clean accuracy: {}'.format(f_acc_adv,f_acc_clean))
     f.close()
 
+def log_AA(last,best,loc):
+    f = open(loc + '/simulation_Details.txt', 'a+')
+    f.write('AA Last: {} , AA_best: {} \n'.format(last,best))
+    f.close()
+
 def get_path(args):
     path = 'Results'
     if not os.path.exists(path):
         os.mkdir(path)
     if args.loss == 'KLD':
-        file = 'AdvDistill-Alpha_{}-Temp_{}-dataset_{}'.format(args.alpha, args.T,args.dataset_name)
+        file = 'AdvContrastive-Alpha_{}-Temp_{}'.format(args.alpha, args.T)
+    elif args.loss == 'trades':
+        file = 'AdvTrades-Alpha_{}-Beta1_{}-Beta2_{}'.format(args.alpha, args.Beta_1,args.Beta_2)
     else:
         file = 'Benchmark-include_{}-dataset_{}'.format(args.include,args.dataset_name)
     path = os.path.join(path, file)

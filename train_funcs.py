@@ -18,9 +18,9 @@ def epoch(args,loader, model, attack=None, buffer=None,opt=None, device=None,**k
     for img, label in loader:
         img, label = img.to(device), label.to(device)
         delta = torch.zeros_like(img, device=device) if attack is None else attack(model, img, label,device,**kwargs)
-        predicts, latents = model(img+delta)
         if opt:
             opt.zero_grad()
+            predicts, latents = model(img + delta)
             if buffer is None or args.loss=='CE':
                 loss = nn.CrossEntropyLoss()(predicts,label)
             else:
@@ -28,7 +28,7 @@ def epoch(args,loader, model, attack=None, buffer=None,opt=None, device=None,**k
                     if args.loss =='KLD':
                         loss = loss_fn_kd(predicts, label, cosine_sim_logitz_buffered(latents,label,buffer),args)
                     elif args.loss =='trades':
-                        clean_predicts, clean_latents = get_cleans(model, img)
+                        clean_predicts, clean_latents = model(img)
                         loss, loss_dic = loss_trades(predicts,latents,clean_predicts,
                                                      clean_latents,label,buffer,args)
                     else:
@@ -52,6 +52,8 @@ def epoch(args,loader, model, attack=None, buffer=None,opt=None, device=None,**k
                 else:
                     for key in losses:
                         losses[key] += loss_dic[key] * img.size(0)
+        else:
+            predicts, latents = model(img + delta)
         total_acc += (predicts.max(dim=1)[1] == label).sum().item()
     if opt:
         print('Loss: ', total_loss / len(loader.dataset))
@@ -60,7 +62,7 @@ def epoch(args,loader, model, attack=None, buffer=None,opt=None, device=None,**k
             for key in losses:
                 st += '{} {}, '.format(key,losses[key] / len(loader.dataset))
             print(st)
-    return total_acc / len(loader.dataset)
+    return total_acc / len(loader.dataset), total_loss/len(loader.dataset)
 
 
 

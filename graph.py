@@ -13,7 +13,8 @@ def table(dic,save_csv = False):
         panda.to_csv('results.csv')
 
 def load_results(file):
-    dic = {'Alpha':[],'Temp':[],'Weighted':[],'Clean Acc':[],'Adv Acc':[]}
+    dic = {'Alpha':[],'Temp':[],'Beta1':[],'Beta2':[],'Norm':[],
+           'Clean last':[],'Adv last':[],'Clean best':[],'Adv best':[],}
     results_clean = []
     results_adv =[]
     keylist = dic.keys()
@@ -27,10 +28,12 @@ def load_results(file):
         res_adv, res_clean = compile_results(res_path)
         results_clean.append(res_clean)
         results_adv.append(res_adv)
-        dic['Clean Acc'].append(np.round(res_clean[-1],3))
-        dic['Adv Acc'].append(np.round(res_adv[-1], 3))
+        dic['Clean last'].append(np.round(res_clean[-1],3))
+        dic['Adv last'].append(np.round(res_adv[-1], 3))
+        dic['Clean best'].append(np.round(max(res_clean), 3))
+        dic['Adv best'].append(np.round(max(res_adv), 3))
         for key in dic:
-            if len(dic[key]) < len(dic['Clean Acc']):
+            if len(dic[key]) < len(dic['Clean last']):
                 dic[key].append('-')
     table(dic,True)
     return dic, results_clean,results_adv
@@ -50,11 +53,14 @@ def compile_results(adress):
 
 def legend_maker(dic):
     legends = []
-    total = len(dic['Clean Acc'])
+    total = len(dic['Clean last'])
     for i in range(total):
         Temp = dic['Temp'][i]
         alfa = dic['Alpha'][i]
-        leg = 'T={} \u03B1={}'.format(Temp,alfa)
+        beta1 = dic['Beta1'][i]
+        beta2 = dic['Beta2'][i]
+        norm = dic['Norm'][i]
+        leg = 'T={} \u03B1={} \u03B2-1={}, \u03B2-2={} Norm {}'.format(Temp,alfa,beta1,beta2,norm)
         legends.append(leg)
     return legends
 
@@ -103,5 +109,5 @@ for tpye in types:
         locations.append(loc + tpye +'/'+nn)
         labels.append(tpye +'--'+ nn)
 
-dic,results_clean,results_adv = load_results('Results')
+dic,results_clean,results_adv = load_results('Results/trades')
 graph(results_adv,results_clean,dic)
