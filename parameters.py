@@ -12,7 +12,7 @@ def args_parser():
     parser.add_argument('--nn_name', type=str, default='resnet18', help='mnist, fmnist, simplecifar, resnet18')
     parser.add_argument('--bs', type=int, default=128, help='Mini-batch Size')
     parser.add_argument("--include", type=str, default='-', help='layer to include for model update')
-    parser.add_argument("--loss", type=str, default='KLD', help='KLD or CE')
+    parser.add_argument("--loss", type=str, default='trades', help='KLD, CE or trades')
 
     parser.add_argument("--pgd_train_iter", type=int, default=10, help='# of pgd iterations during training')
     parser.add_argument("--pgd_test_iter", type=int, default=20, help='# of pgd iterations during test')

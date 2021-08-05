@@ -1,10 +1,13 @@
+import os
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import torch.linalg as lin
 from torch.autograd import Variable
-
+import matplotlib.pyplot as plt
+from os.path import join
 
 class Buffer():
     '''
@@ -161,3 +164,17 @@ def grad_nonzero(model, args):
         include_bn(model)
     elif args.include == 'fc-bn' or args.include == 'bn-fc':
         include_fc_bn(model)
+
+
+def graph_loss(dic,args,path):
+    x_= range(args.epoch)
+    for loss_type in dic:
+        plt.plot(x_, dic[loss_type], label=loss_type)
+    plt.xlabel('Epoch')
+    plt.ylabel('Train loss')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    save = join(path,'Loss_plot.png')
+    plt.savefig(save,bbox_inches='tight')
+

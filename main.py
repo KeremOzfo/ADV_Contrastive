@@ -1,6 +1,6 @@
 import numpy as np
 
-from nn_classes import get_net
+from nn_classes import get_net, get_resnet18_AA
 import torch
 import torch.optim as optim
 from tqdm import tqdm
@@ -8,6 +8,7 @@ from dataset import *
 from parameters import *
 from train_funcs import *
 from AA_test import AA_epoch
+from copy import deepcopy
 
 def save_model(args,model,type):
     if args.save_model:
@@ -25,8 +26,6 @@ def save_model(args,model,type):
 
 if __name__ == '__main__':
     args = args_parser()
-    path = get_path(args)
-    os.mkdir(path)
     best_dict = None
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
 
@@ -39,17 +38,18 @@ if __name__ == '__main__':
     adv_accs = []
     clean_accs = []
     losses =[]
+    loss_dicts = None
     schedular = torch.optim.lr_scheduler.MultiStepLR(opt,milestones=args.LR_change,gamma=0.1)
     attack = utils.pgd_linf_untargeted
     buffer = Buffer(args,device) if args.latent_buffer else None
     for ep in tqdm(range(args.epoch)):
-        train_err,train_loss = epoch(args,train_loader, model,buffer=buffer,attack=attack, opt=opt,device=device,num_iter=args.pgd_train_iter,
+        train_err,train_loss,loss_dict = epoch(args,train_loader, model,buffer=buffer,attack=attack, opt=opt,device=device,num_iter=args.pgd_train_iter,
                                                                          epsilon=args.pgd_train_epsilon, randomize=True,
                                                                          alpha=args.pgd_train_alpha)
-        adv_test_acc,_ = epoch(args,test_loader,model,attack=attack,device=device,num_iter=args.pgd_test_iter,
+        adv_test_acc,_,_ = epoch(args,test_loader,model,attack=attack,device=device,num_iter=args.pgd_test_iter,
                                                                          epsilon=args.pgd_test_epsilon, randomize=True,
                                                                          alpha=args.pgd_test_alpha)
-        clean_test_acc,_ = epoch(args,test_loader,model,device=device,num_iter=args.pgd_test_iter,
+        clean_test_acc,_,_ = epoch(args,test_loader,model,device=device,num_iter=args.pgd_test_iter,
                                                                          epsilon=args.pgd_test_epsilon, randomize=True,
                                                                          alpha=args.pgd_test_alpha)
         schedular.step()
@@ -58,10 +58,16 @@ if __name__ == '__main__':
         losses.append(train_loss)
         adv_accs.append(adv_acc)
         clean_accs.append(clean_acc)
+        if loss_dict is not None:
+            if ep==0:
+                loss_dicts = {k: [] for k in loss_dict}
+            [loss_dicts[key].append(loss_dict[key]) for key in loss_dict]
         if adv_acc >= max(adv_accs):
             save_model(args, model, 'best')
             best_dict = model.state_dict()
         print('Adv acc: ',adv_acc, 'Clean acc: ', clean_acc)
+    path = get_path(args)
+    os.mkdir(path)
     log_params(args, adv_accs[-1],clean_accs[-1], path)
     adv_save_path = os.path.join(path, 'adv_result-{}'.format(0))
     clean_save_path = os.path.join(path, 'clean_result-{}'.format(0))
@@ -70,9 +76,13 @@ if __name__ == '__main__':
     np.save(clean_save_path, clean_accs)
     np.save(loss_path,losses)
     save_model(args,model,'last')
+    if loss_dicts is not None:
+        graph_loss(loss_dicts,args,path)
 
     ## Auto Attack
-    AA_last = AA_epoch(args,test_loader,model,device)
-    model.load_state_dict(best_dict,map_location=device)
-    AA_best = AA_epoch(args,test_loader,model,device)
+    model_aa = get_resnet18_AA().to(device)
+    model_aa.load_state_dict(model.state_dict())
+    AA_last = AA_epoch(args,test_loader,model_aa,device)
+    model_aa.load_state_dict(best_dict)
+    AA_best = AA_epoch(args,test_loader,model_aa,device)
     log_AA(AA_last,AA_best,path)

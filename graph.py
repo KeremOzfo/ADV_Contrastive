@@ -60,7 +60,7 @@ def legend_maker(dic):
         beta1 = dic['Beta1'][i]
         beta2 = dic['Beta2'][i]
         norm = dic['Norm'][i]
-        leg = 'T={} \u03B1={} \u03B2-1={}, \u03B2-2={} Norm {}'.format(Temp,alfa,beta1,beta2,norm)
+        leg = 'T={} \u03B1={} \u03B2-1={}, \u03B2-2={}'.format(Temp,alfa,beta1,beta2,norm)
         legends.append(leg)
     return legends
 
@@ -109,5 +109,5 @@ for tpye in types:
         locations.append(loc + tpye +'/'+nn)
         labels.append(tpye +'--'+ nn)
 
-dic,results_clean,results_adv = load_results('Results/trades')
+dic,results_clean,results_adv = load_results('Results/trades2')
 graph(results_adv,results_clean,dic)

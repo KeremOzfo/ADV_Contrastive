@@ -60,9 +60,10 @@ def epoch(args,loader, model, attack=None, buffer=None,opt=None, device=None,**k
         if losses is not None:
             st = ''
             for key in losses:
-                st += '{} {}, '.format(key,losses[key] / len(loader.dataset))
+                losses[key] /= len(loader.dataset)
+                st += '{} {}, '.format(key,losses[key])
             print(st)
-    return total_acc / len(loader.dataset), total_loss/len(loader.dataset)
+    return total_acc / len(loader.dataset), total_loss/len(loader.dataset),losses
 
 
 
