@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import matplotlib.pyplot as plt
 from os import *
@@ -45,9 +47,15 @@ def compile_results(adress):
         if dir[0] == 'C' or dir[0] == 'c':
             pat = path.join(adress, dir)
             results_clean = np.load(pat)
-        elif dir[0] == 'A' or dir[0] == 'a':
+        elif dir[0] == 'a':
             pat = path.join(adress, dir)
             results_adv = np.load(pat)
+        elif dir == 'Loss_plot.png':
+            new = adress.split('/')[-1] +'-lossPlot.png'
+            os.rename(path.join(adress,dir),os.path.join(adress,new))
+        elif dir == 'Loss_plot.jpg':
+            new = adress.split('/')[-1] +'-lossPlot.jpg'
+            os.rename(path.join(adress,dir),os.path.join(adress,new))
     return results_adv, results_clean
 
 
@@ -60,7 +68,10 @@ def legend_maker(dic):
         beta1 = dic['Beta1'][i]
         beta2 = dic['Beta2'][i]
         norm = dic['Norm'][i]
-        leg = 'T={} \u03B1={} \u03B2-1={}, \u03B2-2={}'.format(Temp,alfa,beta1,beta2,norm)
+        if dic['Temp'][i] !='-':
+            leg = 'T={} \u03B1={} \u03B2-1={}, \u03B2-2={}'.format(Temp,alfa,beta1,beta2,norm)
+        else:
+            leg = '\u03B1={} \u03B2-1={}, \u03B2-2={}'.format(alfa, beta1, beta2, norm)
         legends.append(leg)
     return legends
 
@@ -81,7 +92,7 @@ def graph(adv,clean, dic,interval=1):
         for i in range(0,len(d_clean)):
             x_axis.append(i*interval)
         plt.plot(x_axis,d_adv, color=c,marker=m ,linestyle =l ,markersize=2, label=legend,linewidth=2)
-        plt.plot(x_axis, d_clean,color=c,linewidth=2)
+        plt.plot(x_axis, d_clean,color=c,linewidth=2,linestyle='-')
     #plt.axis([0, 30,70 ,90])
     #plt.axis([145,155,88,92])
     #plt.axis([290, 300, 90, 95])

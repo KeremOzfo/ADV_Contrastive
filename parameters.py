@@ -20,6 +20,9 @@ def args_parser():
     parser.add_argument("--pgd_test_alpha", type=float, default=2.0/255, help='alpha parameter')
     parser.add_argument("--pgd_train_epsilon", type=float, default=8.0/255.0, help='epsilon')
     parser.add_argument("--pgd_test_epsilon", type=float, default=8.0/255.0, help='epsilon')
+    parser.add_argument("--pgd_counter_alpha", type=float, default=2.0 / 255, help='alpha parameter')
+    parser.add_argument("--pgd_counter_epsilon", type=float, default=8.0 / 255.0, help='epsilon')
+
 
     parser.add_argument('--alpha', type=float, default=0.1, help='alpha parameter for KLD Loss')
     parser.add_argument('--Beta_1', type=float, default=6, help='alpha parameter for KLD Loss')
@@ -63,6 +66,10 @@ def get_path(args):
         file = 'AdvContrastive-Alpha_{}-Temp_{}'.format(args.alpha, args.T)
     elif args.loss == 'trades':
         file = 'AdvTrades-Alpha_{}-Beta1_{}-Beta2_{}'.format(args.alpha, args.Beta_1,args.Beta_2)
+    elif args.loss == 'apr2':
+        file = 'approach2-Alpha_{}'.format(args.alpha)
+    elif args.loss == 'apr3':
+        file = 'approach3'
     else:
         file = 'Benchmark-include_{}-dataset_{}'.format(args.include,args.dataset_name)
     path = os.path.join(path, file)

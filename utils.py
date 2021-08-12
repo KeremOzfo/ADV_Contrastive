@@ -64,28 +64,27 @@ def pgd_linf_untargeted(model, X, y, device, epsilon=0.1, alpha=0.01, num_iter=2
     return delta.detach()
 
 
-def cw_whitebox(model,X,y,epsilon=0.1, alpha=0.01, num_iter=20, randomize=False):
+def counter_pgd_linf_untargeted_L1(model, X, epsilon=0.1, alpha=0.01, num_iter=10, randomize=False,start_delta=None):
     if randomize:
         delta = torch.rand_like(X, requires_grad=True)
         delta.data = delta.data * 2 * epsilon - epsilon
     else:
         delta = torch.zeros_like(X, requires_grad=True)
-
-    for _ in range(num_iter):
-
-        output, l = model(X + delta)
-        correct_logit = torch.sum(torch.gather(output, 1, (y.unsqueeze(1)).long()).squeeze())
-        tmp1 = torch.argsort(output, dim=1)[:, -2:]
-        new_y = torch.where(tmp1[:, -1] == y, tmp1[:, -2], tmp1[:, -1])
-        wrong_logit = torch.sum(torch.gather(output, 1, (new_y.unsqueeze(1)).long()).squeeze())
-        loss = -F.relu(correct_logit - wrong_logit)
-
+        if start_delta is not None:
+            delta.data = start_delta.data
+    #predict, latent = model(X)
+    for t in range(num_iter):
+        predict_adv, latent_adv = model(X + delta)
+        loss = torch.mean(lin.norm(latent_adv,ord=1,dim=1))
         loss.backward()
-        delta_sign = alpha * delta.grad.data.detach().sign()
-        delta.data = torch.clamp(delta + delta_sign, -epsilon, epsilon) ## add or sub delta_sign ?
+
+        img_grads = torch.clone(delta.grad.detach())
+        sign_vec = img_grads.sign()
+
+        delta.data = (delta - alpha * sign_vec).clamp(-epsilon, epsilon)
         delta.data = (X.data + delta).clamp(0, 1) - X.data
         delta.grad.zero_()
-    return delta
+    return delta.detach()
 
 def sim_matrix2(a,b,eps=1e-8):
     a_n ,b_n = a.norm(dim=1)[:, None] , b.norm(dim=1)[:,None]
@@ -104,36 +103,6 @@ def cosine_sim_logitz_buffered(logitz,labels,buffer):
 def kerem_softmax(logit):
     soft = logit.exp() / logit.exp().sum(dim=1,keepdim=True).expand(logit.size())
     return soft
-
-def loss_fn_kd(outputs, labels, teacher_outputs,args):
-    """
-    Compute the knowledge-distillation (KD) loss given outputs, labels.
-    "Hyperparameters": temperature and alpha
-    NOTE: the KL Divergence for PyTorch comparing the softmaxs of teacher
-    and student expects the input tensor to be log probabilities! See Issue #2
-    """
-    alpha = args.alpha
-    T = args.T
-    norm_loss = lin.norm(outputs.detach(),dim=1).mean()
-    KD_loss = nn.KLDivLoss()(F.log_softmax(outputs/T, dim=1),
-        kerem_softmax(teacher_outputs/T)) * (alpha * T * T) + F.cross_entropy(outputs, labels) * (1. - alpha)
-
-    return KD_loss + norm_loss * args.norm_loss
-
-def loss_trades(adv_logits,adv_lat,clean_logits,clean_lat,labels,buffer,args):
-    KLD = nn.KLDivLoss(size_average=False)
-    bs = adv_logits.size(0)
-    natural_ce = F.cross_entropy(clean_logits,labels) * (1-args.alpha)
-    robust_kld = KLD(F.log_softmax(adv_logits, dim=1),F.softmax(clean_logits, dim=1)) * args.Beta_1 / bs
-    cos_clean = cosine_sim_logitz_buffered(clean_lat,labels,buffer)
-    cos_adv = cosine_sim_logitz_buffered(adv_lat,labels,buffer)
-    buffer_clean_kl = KLD(F.log_softmax(clean_logits, dim=1),kerem_softmax(cos_clean)) * args.alpha / bs
-    buffer_adv_kl = KLD(F.log_softmax(adv_logits, dim=1),kerem_softmax(cos_adv)) * args.Beta_2 / bs
-    #loss_dic = {'CE':natural_ce.item(),'KL1':0,'KL2':robust_kld.item(),'KL3':0}
-    loss_dic = {'CE':natural_ce.item(),'KL1':buffer_clean_kl.item(),'KL2':robust_kld.item(),'KL3':buffer_adv_kl.item()}
-    total_loss =  natural_ce + buffer_clean_kl + robust_kld + buffer_adv_kl
-    #total_loss = natural_ce + robust_kld
-    return total_loss, loss_dic
 
 
 def include_fc(model):
@@ -173,8 +142,10 @@ def graph_loss(dic,args,path):
     plt.xlabel('Epoch')
     plt.ylabel('Train loss')
     plt.legend()
+    plt.title('{}'.format(args.loss))
     plt.grid(True)
     plt.tight_layout()
-    save = join(path,'Loss_plot.png')
+    name= path.split('/')[-1] +'LossPlot.png'
+    save = join(path,name)
     plt.savefig(save,bbox_inches='tight')
 

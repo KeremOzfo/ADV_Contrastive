@@ -18,15 +18,20 @@ def save_model(args,model,type):
             f_name = '{}-ADV_cons_model-T_{}-Alpha_{}.pt'.format(type,args.T,args.alpha)
         elif args.loss =='trades':
             f_name = '{}-ADV_trades_model-Alpha_{}_Beta1_{}-Beta2_{}.pt'.format(type, args.alpha,args.Beta_1,args.Beta_2)
+        elif args.loss =='apr2':
+            f_name = '{}-ADV_apr2_model-Alpha_{}.pt'.format(type, args.alpha)
+        elif args.loss =='apr3':
+            f_name = '{}-ADV_apr3_model-Alpha_{}.pt'.format(type, args.alpha)
         else:
-            f_name = '{}-ADV_model-eps_{}.pt'.format(type,args.pgd_train_epsilon*255)
+            f_name = '{}-ADV_model.pt'.format(type)
         pat = os.path.join('Saved_models',f_name)
         torch.save(model.state_dict(), pat)
+        return pat
 
 
 if __name__ == '__main__':
     args = args_parser()
-    best_dict = None
+    best_loc = None
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
 
     train_loader, test_loader = get_data_loader(args)
@@ -63,8 +68,7 @@ if __name__ == '__main__':
                 loss_dicts = {k: [] for k in loss_dict}
             [loss_dicts[key].append(loss_dict[key]) for key in loss_dict]
         if adv_acc >= max(adv_accs):
-            save_model(args, model, 'best')
-            best_dict = model.state_dict()
+            best_loc = save_model(args, model, 'best')
         print('Adv acc: ',adv_acc, 'Clean acc: ', clean_acc)
     path = get_path(args)
     os.mkdir(path)
@@ -75,7 +79,7 @@ if __name__ == '__main__':
     np.save(adv_save_path, adv_accs)
     np.save(clean_save_path, clean_accs)
     np.save(loss_path,losses)
-    save_model(args,model,'last')
+    last_loc = save_model(args,model,'last')
     if loss_dicts is not None:
         graph_loss(loss_dicts,args,path)
 
@@ -83,6 +87,7 @@ if __name__ == '__main__':
     model_aa = get_resnet18_AA().to(device)
     model_aa.load_state_dict(model.state_dict())
     AA_last = AA_epoch(args,test_loader,model_aa,device)
+    best_dict = torch.load(best_loc, map_location=device)
     model_aa.load_state_dict(best_dict)
     AA_best = AA_epoch(args,test_loader,model_aa,device)
     log_AA(AA_last,AA_best,path)
