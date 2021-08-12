@@ -39,7 +39,7 @@ def epoch(args,loader, model, attack=None, buffer=None,opt=None, device=None,**k
                         counter_delta = counter_pgd_linf_untargeted_L1(model,img,epsilon=args.pgd_counter_epsilon,
                                                                    alpha=args.pgd_counter_alpha,start_delta=delta)
                         counter_clamp = delta.sub(counter_delta).clamp(-1/255,1/255)
-                        counter_predicts, counter_latents = model((img+counter_clamp).clamp(0,1))
+                        counter_predicts, counter_latents = model((img+delta+counter_clamp).clamp(0,1))
                         clean_predicts, clean_latents = model(img)
                         loss, loss_dic = apr3(predicts, clean_predicts, counter_predicts,
                                                      counter_latents, label, buffer, args)
