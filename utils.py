@@ -82,6 +82,7 @@ def counter_pgd_linf_untargeted_L1(model, X, epsilon=0.1, alpha=0.01, num_iter=1
         sign_vec = img_grads.sign()
 
         delta.data = (delta - alpha * sign_vec).clamp(-epsilon, epsilon)
+        delta.data = delta + delta.sub(start_delta).clamp(-1 / 255, 1 / 255)
         delta.data = (X.data + delta).clamp(0, 1) - X.data
         delta.grad.zero_()
     return delta.detach()
