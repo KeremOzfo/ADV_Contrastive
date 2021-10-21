@@ -12,7 +12,7 @@ def args_parser():
     parser.add_argument('--nn_name', type=str, default='resnet18', help='mnist, fmnist, simplecifar, resnet18')
     parser.add_argument('--bs', type=int, default=128, help='Mini-batch Size')
     parser.add_argument("--include", type=str, default='-', help='layer to include for model update')
-    parser.add_argument("--loss", type=str, default='trades', help='KLD, CE or trades')
+    parser.add_argument("--loss", type=str, default='apr3', help='KLD, CE or trades')
 
     parser.add_argument("--pgd_train_iter", type=int, default=10, help='# of pgd iterations during training')
     parser.add_argument("--pgd_test_iter", type=int, default=20, help='# of pgd iterations during test')
@@ -22,11 +22,13 @@ def args_parser():
     parser.add_argument("--pgd_test_epsilon", type=float, default=8.0/255.0, help='epsilon')
     parser.add_argument("--pgd_counter_alpha", type=float, default=2.0 / 255, help='alpha parameter')
     parser.add_argument("--pgd_counter_epsilon", type=float, default=8.0 / 255.0, help='epsilon')
+    parser.add_argument("--eps_ball", type=float, default=2.0 / 255.0, help='epsilon to counter')
 
 
     parser.add_argument('--alpha', type=float, default=0.1, help='alpha parameter for KLD Loss')
     parser.add_argument('--Beta_1', type=float, default=6, help='alpha parameter for KLD Loss')
     parser.add_argument('--Beta_2', type=float, default=0.5, help='alpha parameter for KLD Loss')
+    parser.add_argument('--B_count', type=float, default=3, help='alpha parameter for KLD Loss')
     parser.add_argument('--T', type=int, default=5, help='Temperature parameter for KLD loss')
     parser.add_argument('--latent_buffer', type=bool, default=True, help='store latent values on a buffer')
     parser.add_argument('--buffer_size', type=int, default=16, help='buffer size per class')
@@ -55,7 +57,7 @@ def log_params(args,f_acc_adv,f_acc_clean,loc,trail=0):
 
 def log_AA(last,best,loc):
     f = open(loc + '/simulation_Details.txt', 'a+')
-    f.write('AA Last: {} , AA_best: {} \n'.format(last,best))
+    f.write('AA Last: {} , AA best: {} \n'.format(last,best))
     f.close()
 
 def get_path(args):
@@ -69,7 +71,7 @@ def get_path(args):
     elif args.loss == 'apr2':
         file = 'approach2-Alpha_{}'.format(args.alpha)
     elif args.loss == 'apr3':
-        file = 'approach3'
+        file = 'approach3-Alpha_{}-Bcount_{}-Eps_{}'.format(args.alpha,args.B_count,args.eps_ball)
     else:
         file = 'Benchmark-include_{}-dataset_{}'.format(args.include,args.dataset_name)
     path = os.path.join(path, file)

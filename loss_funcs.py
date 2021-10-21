@@ -6,7 +6,7 @@ import torch.linalg as lin
 class NLLsmooth(nn.Module):
     """NLL loss with label smoothing.
     """
-    def __init__(self, smoothing=0.0):
+    def __init__(self, smoothing=0.1):
         """Constructor for the LabelSmoothing module.
         :param smoothing: label smoothing factor
         """
@@ -73,5 +73,27 @@ def apr3(adv_logits,clean_logits,counter_logits,counter_lat,labels,buffer,args):
     robust_counter_kld = KLD(F.log_softmax(adv_logits, dim=1), F.softmax(counter_logits, dim=1)) / bs
     clean_kld = KLD(F.log_softmax(counter_logits, dim=1), F.softmax(clean_logits, dim=1)) / bs
     loss_dic = {'CE':counter_CE.item(),'KL1':buffer_cadv_kl.item(),'KL2':robust_counter_kld.item(),'KL3':clean_kld.item()}
-    total_loss = counter_CE * (1-args.alpha) + buffer_cadv_kl * args.alpha + robust_counter_kld + clean_kld
+    total_loss = counter_CE * (1-args.alpha) + buffer_cadv_kl * args.alpha + robust_counter_kld * args.B_count + clean_kld
+    return total_loss, loss_dic
+
+def apr4(adv_logits,clean_logits,counter_logits,counter_lat,labels,buffer,args):
+    KLD = nn.KLDivLoss(size_average=False)
+    bs = adv_logits.size(0)
+    clean_CE = F.cross_entropy(clean_logits,labels)
+    cos_cadv = cosine_sim_logitz_buffered(counter_lat,labels,buffer)
+    buffer_cadv_kl = KLD(F.log_softmax(counter_logits, dim=1),kerem_softmax(cos_cadv)) / bs
+    robust_counter_kld = KLD(F.log_softmax(adv_logits, dim=1), F.softmax(counter_logits, dim=1)) / bs
+    clean_kld = KLD(F.log_softmax(counter_logits, dim=1), F.softmax(clean_logits, dim=1)) / bs
+    loss_dic = {'CE':clean_CE.item(),'KL1':buffer_cadv_kl.item(),'KL2':robust_counter_kld.item(),'KL3':clean_kld.item()}
+    total_loss = clean_CE * (1-args.alpha) + buffer_cadv_kl * args.alpha + robust_counter_kld * args.B_count + clean_kld
+    return total_loss, loss_dic
+
+def mid_sample(adv_logits,clean_logits,counter_logits,labels,args):
+    KLD = nn.KLDivLoss(size_average=False)
+    bs = adv_logits.size(0)
+    clean_CE = F.cross_entropy(clean_logits,labels)
+    cadv_kld = KLD(F.log_softmax(adv_logits, dim=1),F.softmax(counter_logits,dim=1)) / bs
+    clean_kld = KLD(F.log_softmax(counter_logits, dim=1), F.softmax(clean_logits, dim=1)) / bs
+    loss_dic = {'CE':clean_CE.item(),'KL1':cadv_kld.item(),'KL2':clean_kld.item()}
+    total_loss = clean_CE + args.Beta_1 * cadv_kld + args.Beta_2 * clean_kld
     return total_loss, loss_dic

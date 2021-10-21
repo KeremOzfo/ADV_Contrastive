@@ -32,7 +32,7 @@ def load_results(file):
         results_adv.append(res_adv)
         dic['Clean last'].append(np.round(res_clean[-1],3))
         dic['Adv last'].append(np.round(res_adv[-1], 3))
-        dic['Clean best'].append(np.round(max(res_clean), 3))
+        dic['Clean best'].append(np.round(res_clean[np.argmax(res_adv)], 3))
         dic['Adv best'].append(np.round(max(res_adv), 3))
         for key in dic:
             if len(dic[key]) < len(dic['Clean last']):
@@ -44,10 +44,10 @@ def compile_results(adress):
     results_adv = None
     results_clean = None
     for dir in listdir(adress):
-        if dir[0] == 'C' or dir[0] == 'c':
+        if  dir[:5] == 'clean':
             pat = path.join(adress, dir)
             results_clean = np.load(pat)
-        elif dir[0] == 'a':
+        elif dir[:3] == 'adv':
             pat = path.join(adress, dir)
             results_adv = np.load(pat)
         elif dir == 'Loss_plot.png':

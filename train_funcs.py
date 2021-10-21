@@ -11,15 +11,23 @@ def epoch(args,loader, model, attack=None, buffer=None,opt=None, device=None,**k
     total_acc, total_loss= 0., 0.
     losses = None
     loss_dic = None
-    if opt is None:
-        model.eval()
-    else:
-        model.train()
+    model.eval()
     for img, label in loader:
         img, label = img.to(device), label.to(device)
         delta = torch.zeros_like(img, device=device) if attack is None else attack(model, img, label,device,**kwargs)
+
+        if args.loss =='apr3':
+            counter_delta = counter_pgd_linf_untargeted_L1(model, img, epsilon=args.pgd_counter_epsilon, eps_ball=args.eps_ball,
+                                                       alpha=args.pgd_counter_alpha, start_delta=delta)
+        elif args.loss == 'mid_sample':
+            counter_delta = counter_train(model, img, label, device,epsilon=args.pgd_counter_epsilon, eps_ball=args.eps_ball,
+                                                       alpha=args.pgd_counter_alpha, start_delta=delta)
+        else:
+            counter_delta = torch.zeros_like(img, device=device)
         if opt:
+            model.train()
             opt.zero_grad()
+            clean_predicts, clean_latents = model(img)
             predicts, latents = model(img + delta)
             if buffer is None or args.loss=='CE':
                 loss = nn.CrossEntropyLoss()(predicts,label)
@@ -28,26 +36,24 @@ def epoch(args,loader, model, attack=None, buffer=None,opt=None, device=None,**k
                     if args.loss =='KLD':
                         loss, loss_dic = loss_fn_kd(predicts, label, cosine_sim_logitz_buffered(latents,label,buffer),args)
                     elif args.loss =='trades':
-                        clean_predicts, clean_latents = model(img)
                         loss, loss_dic = loss_trades(predicts,latents,clean_predicts,
                                                      clean_latents,label,buffer,args)
                     elif args.loss =='apr2':
-                        clean_predicts, clean_latents = model(img)
                         loss, loss_dic = apr2(predicts, latents, clean_predicts,
                                                      clean_latents, label, buffer, args)
                     elif args.loss =='apr3':
-                        counter_delta = counter_pgd_linf_untargeted_L1(model,img,epsilon=args.pgd_counter_epsilon,
-                                                                   alpha=args.pgd_counter_alpha,start_delta=delta)
                         counter_predicts, counter_latents = model(img+counter_delta)
-                        clean_predicts, clean_latents = model(img)
                         loss, loss_dic = apr3(predicts, clean_predicts, counter_predicts,
                                                      counter_latents, label, buffer, args)
+                    elif args.loss =='mid_sample':
+                        counter_predicts, counter_latents = model(img+counter_delta)
+                        loss, loss_dic = mid_sample(predicts, clean_predicts, counter_predicts,
+                                                     label, args)
                     else:
                         raise NotImplementedError('Incompatible loss function')
                 else:
                     loss = nn.CrossEntropyLoss()(predicts, label)
             loss.backward()
-            grad_nonzero(model,args)
             opt.step()
 
             if buffer is not None:

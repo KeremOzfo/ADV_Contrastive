@@ -64,28 +64,53 @@ def pgd_linf_untargeted(model, X, y, device, epsilon=0.1, alpha=0.01, num_iter=2
     return delta.detach()
 
 
-def counter_pgd_linf_untargeted_L1(model, X, epsilon=0.1, alpha=0.01, num_iter=10, randomize=False,start_delta=None):
+def counter_pgd_linf_untargeted_L1(model, X, eps_ball=0.01,epsilon=0.1, alpha=0.01, num_iter=10, randomize=False,start_delta=None):
     if randomize:
-        delta = torch.rand_like(X, requires_grad=True)
-        delta.data = delta.data * 2 * epsilon - epsilon
+        delta_counter = torch.rand_like(X, requires_grad=True)
+        delta_counter.data = delta_counter.data * 2 * epsilon - epsilon
     else:
-        delta = torch.zeros_like(X, requires_grad=True)
+        delta_counter = torch.zeros_like(X, requires_grad=True)
         if start_delta is not None:
-            delta.data = start_delta.data
+            delta_counter.data = start_delta.data
+
     #predict, latent = model(X)
     for t in range(num_iter):
-        predict_adv, latent_adv = model(X + delta)
+        predict_adv, latent_adv = model(X + delta_counter)
         loss = torch.mean(lin.norm(latent_adv,ord=1,dim=1))
         loss.backward()
 
-        img_grads = torch.clone(delta.grad.detach())
+        img_grads = torch.clone(delta_counter.grad.detach())
         sign_vec = img_grads.sign()
 
-        delta.data = (delta - alpha * sign_vec).clamp(-epsilon, epsilon)
-        delta.data = delta + delta.sub(start_delta).clamp(-1 / 255, 1 / 255)
-        delta.data = (X.data + delta).clamp(0, 1) - X.data
-        delta.grad.zero_()
-    return delta.detach()
+        delta_counter.data = (delta_counter - alpha * sign_vec).clamp(-epsilon, epsilon)
+        delta_counter.data = start_delta.data + (start_delta.data - delta_counter).clamp(-eps_ball, eps_ball)
+        delta_counter.data = (X.data + delta_counter).clamp(0, 1) - X.data
+        delta_counter.grad.zero_()
+    return delta_counter.detach()
+
+def counter_train(model, X, y,device,epsilon=0.1,eps_ball=0.01,alpha=0.01, num_iter=10, randomize=False,start_delta=None):
+    if randomize:
+        delta_counter = torch.rand_like(X, requires_grad=True,device=device)
+        delta_counter.data = delta_counter.data * 2 * epsilon - epsilon
+    else:
+        delta_counter = torch.zeros_like(X, requires_grad=True,device=device)
+        if start_delta is not None:
+            delta_counter.data = start_delta.data
+
+    #predict, latent = model(X)
+    for t in range(num_iter):
+        predict_adv, latent_adv = model(X + delta_counter)
+        loss = torch.mean(lin.norm(latent_adv,ord=1,dim=1)) + F.cross_entropy(latent_adv,y)
+        loss.backward()
+
+        img_grads = torch.clone(delta_counter.grad.detach())
+        sign_vec = img_grads.sign()
+
+        delta_counter.data = (delta_counter - alpha * sign_vec).clamp(-epsilon, epsilon)
+        delta_counter.data = start_delta.data + (start_delta.data - delta_counter).clamp(-eps_ball, eps_ball)
+        delta_counter.data = (X.data + delta_counter).clamp(0, 1) - X.data
+        delta_counter.grad.zero_()
+    return delta_counter.detach()
 
 def sim_matrix2(a,b,eps=1e-8):
     a_n ,b_n = a.norm(dim=1)[:, None] , b.norm(dim=1)[:,None]
