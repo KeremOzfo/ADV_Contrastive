@@ -100,7 +100,8 @@ def counter_train(model, X, y,device,epsilon=0.1,eps_ball=0.01,alpha=0.01, num_i
     #predict, latent = model(X)
     for t in range(num_iter):
         predict_adv, latent_adv = model(X + delta_counter)
-        loss = torch.mean(lin.norm(latent_adv,ord=1,dim=1)) + F.cross_entropy(latent_adv,y)
+        loss = torch.mean(lin.norm(latent_adv,ord=1,dim=1)) + F.cross_entropy(predict_adv,y)
+        #print(torch.mean(lin.norm(latent_adv,ord=1,dim=1)),F.cross_entropy(predict_adv,y))
         loss.backward()
 
         img_grads = torch.clone(delta_counter.grad.detach())
