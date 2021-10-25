@@ -81,7 +81,7 @@ def counter_pgd_linf_untargeted_L1(model, X, eps_ball=0.01,epsilon=0.1, alpha=0.
 
         img_grads = torch.clone(delta_counter.grad.detach())
         sign_vec = img_grads.sign()
-
+        ######## Projection according to clean sample ###############
         delta_counter.data = (delta_counter - alpha * sign_vec).clamp(-epsilon, epsilon)
         delta_counter.data = start_delta.data + (start_delta.data - delta_counter).clamp(-eps_ball, eps_ball)
         delta_counter.data = (X.data + delta_counter).clamp(0, 1) - X.data
